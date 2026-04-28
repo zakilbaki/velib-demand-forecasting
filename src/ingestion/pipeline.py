@@ -1,3 +1,9 @@
+from src.db import (
+    get_db_connection,
+    insert_availability_observations,
+    upsert_stations,
+)
+
 from src.ingestion.client import fetch_velib_data
 from src.ingestion.mapper import map_station_record
 from src.ingestion.validator import (
@@ -36,6 +42,13 @@ def run_ingestion_pipeline() -> dict:
                     "error": "validation_failed",
                 }
             )
+
+    conn = get_db_connection()
+    try:
+        upsert_stations(conn, valid_stations)
+        insert_availability_observations(conn, valid_observations)
+    finally:
+        conn.close()
 
     summary = {
         "total_raw_stations": len(raw_stations),
