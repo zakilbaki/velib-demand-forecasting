@@ -54,7 +54,7 @@ def run_ingestion_pipeline() -> dict:
         "total_raw_stations": len(raw_stations),
         "valid_stations": valid_stations,
         "valid_observations": valid_observations,
-        "invalid_records": invalid_records,
+        "invalid_records": invalid_records
     }
 
     print(f"Total stations recuperees: {summary['total_raw_stations']}")
