@@ -6,8 +6,9 @@ from src.db import get_db_connection
 from src.features.models import RegressionTrainingRow
 
 
-CONTINUOUS_BLOCK_START = pd.Timestamp("2026-03-01 00:00:00", tz="UTC")
+CONTINUOUS_BLOCK_START = pd.Timestamp("2026-01-01 00:00:00", tz="UTC")
 CONTINUOUS_BLOCK_END = pd.Timestamp("2026-03-16 00:00:00", tz="UTC")
+BEST_DATASET_VERSION = "best_regression_training_dataframe_2026-01-01_to_2026-03-16"
 
 
 REGRESSION_DATASET_QUERY = """

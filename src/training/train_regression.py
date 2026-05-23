@@ -1,5 +1,3 @@
-from pathlib import Path
-
 import mlflow
 import numpy as np
 import pandas as pd
@@ -8,40 +6,19 @@ from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 from sklearn.model_selection import TimeSeriesSplit
 
 from src.features.regression_dataset import build_best_regression_training_dataframe
-
-
-TRAIN_END = pd.Timestamp("2026-03-11 00:00:00", tz="UTC")
-VAL_END = pd.Timestamp("2026-03-13 00:00:00", tz="UTC")
-EXPERIMENT_NAME = "velib-demand-forecasting"
-FEATURE_SET_NAME = "core_plus_lat_lon_plus_lags"
-FEATURE_COLUMNS = [
-    "free_bikes_current",
-    "empty_slots_current",
-    "hour_of_day",
-    "is_weekend",
-    "latitude",
-    "longitude",
-    "free_bikes_t_minus_1",
-    "free_bikes_t_minus_2",
-    "free_bikes_t_minus_3",
-    "delta_1h",
-    "delta_3h",
-]
-TARGET_COLUMN = "free_bikes_next_hour"
-BEST_PARAMS = {
-    "n_estimators": 200,
-    "learning_rate": 0.05,
-    "max_depth": 3,
-    "min_samples_leaf": 5,
-    "subsample": 0.8,
-    "random_state": 42,
-}
-
-
-def _configure_mlflow() -> None:
-    tracking_path = Path.cwd() / "mlflow.db"
-    mlflow.set_tracking_uri(f"sqlite:///{tracking_path}")
-    mlflow.set_experiment(EXPERIMENT_NAME)
+from src.modeling_config import (
+    BEST_DATASET_VERSION,
+    BEST_PARAMS,
+    CONTINUOUS_BLOCK_END,
+    CONTINUOUS_BLOCK_START,
+    FEATURE_COLUMNS,
+    FEATURE_SET_NAME,
+    MODEL_NAME,
+    TARGET_COLUMN,
+    TRAIN_END,
+    VAL_END,
+    configure_mlflow,
+)
 
 
 def train_best_candidate_with_cv() -> None:
@@ -67,19 +44,21 @@ def train_best_candidate_with_cv() -> None:
 
     tscv = TimeSeriesSplit(n_splits=3)
 
-    _configure_mlflow()
+    configure_mlflow()
 
     fold_rmse = []
     fold_mae = []
     fold_r2 = []
 
-    with mlflow.start_run(run_name="gbr_cv_best_feature_set"):
-        mlflow.log_param("dataset_version", "best_regression_training_dataframe")
+    with mlflow.start_run(run_name="gbr_cv_best_feature_set_q1_to_mid_march"):
+        mlflow.log_param("dataset_version", BEST_DATASET_VERSION)
         mlflow.log_param("feature_set_name", FEATURE_SET_NAME)
-        mlflow.log_param("model_name", "GradientBoostingRegressor")
+        mlflow.log_param("model_name", MODEL_NAME)
         mlflow.log_param("cv_type", "TimeSeriesSplit")
         mlflow.log_param("n_splits", 3)
         mlflow.log_param("features", FEATURE_COLUMNS)
+        mlflow.log_param("continuous_block_start", str(CONTINUOUS_BLOCK_START))
+        mlflow.log_param("continuous_block_end", str(CONTINUOUS_BLOCK_END))
         mlflow.log_param("train_end", str(TRAIN_END))
         mlflow.log_param("val_end", str(VAL_END))
         mlflow.log_metric("train_rows", len(train_df))
@@ -116,7 +95,7 @@ def train_best_candidate_with_cv() -> None:
         mlflow.log_metric("cv_mae_mean", float(np.mean(fold_mae)))
         mlflow.log_metric("cv_r2_mean", float(np.mean(fold_r2)))
 
-        print(f"Training rows: {len(df)}")
+        print(f"Dataset rows: {len(df)}")
         print(f"Development rows: {len(dev_df)}")
         print(f"Mean CV RMSE: {np.mean(fold_rmse):.4f}")
         print(f"Mean CV MAE: {np.mean(fold_mae):.4f}")
