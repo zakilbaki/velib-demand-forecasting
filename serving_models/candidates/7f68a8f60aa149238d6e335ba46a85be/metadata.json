@@ -1,0 +1,7 @@
+{
+  "run_id": "7f68a8f60aa149238d6e335ba46a85be",
+  "run_name": "gbr_final_test_evaluation_q1_to_mid_march",
+  "experiment_name": "velib-demand-forecasting",
+  "feature_set_name": "core_plus_lat_lon_plus_lags",
+  "model_name": "GradientBoostingRegressor"
+}

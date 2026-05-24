@@ -19,8 +19,7 @@ from src.modeling_config import (
     MODEL_ARTIFACT_NAME,
     MODEL_NAME,
     EXPERIMENT_NAME,
-    SERVING_MODEL_DIR,
-    SERVING_MODEL_METADATA_PATH,
+    SERVING_CANDIDATES_DIR,
     TARGET_COLUMN,
     TRAIN_END,
     VAL_END,
@@ -31,13 +30,8 @@ from src.modeling_config import (
 FINAL_EVALUATION_RUN_NAME = "gbr_final_test_evaluation_q1_to_mid_march"
 
 
-def _export_serving_bundle(model, run_id: str, run_name: str) -> None:
-    if SERVING_MODEL_DIR.exists():
-        shutil.rmtree(SERVING_MODEL_DIR)
-
-    mlflow.sklearn.save_model(model, path=str(SERVING_MODEL_DIR))
-
-    SERVING_MODEL_METADATA_PATH.write_text(
+def _write_serving_metadata(metadata_path, run_id: str, run_name: str) -> None:
+    metadata_path.write_text(
         json.dumps(
             {
                 "run_id": run_id,
@@ -49,6 +43,19 @@ def _export_serving_bundle(model, run_id: str, run_name: str) -> None:
             indent=2,
         )
     )
+
+
+def _export_candidate_bundle(model, run_id: str, run_name: str):
+    candidate_dir = SERVING_CANDIDATES_DIR / run_id
+
+    if candidate_dir.exists():
+        shutil.rmtree(candidate_dir)
+
+    candidate_dir.parent.mkdir(parents=True, exist_ok=True)
+    mlflow.sklearn.save_model(model, path=str(candidate_dir))
+    _write_serving_metadata(candidate_dir / "metadata.json", run_id, run_name)
+
+    return candidate_dir
 
 
 def evaluate_best_candidate_on_test() -> None:
@@ -115,7 +122,7 @@ def evaluate_best_candidate_on_test() -> None:
         mlflow.log_metric("test_mae", float(test_mae))
         mlflow.log_metric("test_r2", float(test_r2))
         mlflow.sklearn.log_model(model, name=MODEL_ARTIFACT_NAME)
-        _export_serving_bundle(
+        candidate_dir = _export_candidate_bundle(
             model=model,
             run_id=run.info.run_id,
             run_name=FINAL_EVALUATION_RUN_NAME,
@@ -127,6 +134,7 @@ def evaluate_best_candidate_on_test() -> None:
         print(f"Test RMSE: {test_rmse:.4f}")
         print(f"Test MAE: {test_mae:.4f}")
         print(f"Test R2: {test_r2:.4f}")
+        print(f"Candidate bundle exported to: {candidate_dir}")
 
 
 def main() -> None:

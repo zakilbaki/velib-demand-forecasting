@@ -12,7 +12,9 @@ from src.features.regression_dataset import (
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 MLFLOW_TRACKING_URI = f"sqlite:///{PROJECT_ROOT / 'mlflow.db'}"
-SERVING_MODEL_DIR = PROJECT_ROOT / "serving_models" / "current"
+SERVING_MODELS_DIR = PROJECT_ROOT / "serving_models"
+SERVING_CANDIDATES_DIR = SERVING_MODELS_DIR / "candidates"
+SERVING_MODEL_DIR = SERVING_MODELS_DIR / "current"
 SERVING_MODEL_METADATA_PATH = SERVING_MODEL_DIR / "metadata.json"
 EXPERIMENT_NAME = "velib-demand-forecasting"
 MODEL_NAME = "GradientBoostingRegressor"
@@ -61,8 +63,10 @@ __all__ = [
     "MODEL_ARTIFACT_NAME",
     "MODEL_NAME",
     "PROJECT_ROOT",
+    "SERVING_CANDIDATES_DIR",
     "SERVING_MODEL_DIR",
     "SERVING_MODEL_METADATA_PATH",
+    "SERVING_MODELS_DIR",
     "TARGET_COLUMN",
     "TRAIN_END",
     "VAL_END",
