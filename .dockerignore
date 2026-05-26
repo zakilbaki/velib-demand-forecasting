@@ -1,0 +1,14 @@
+.git
+.venv
+__pycache__
+*.pyc
+.DS_Store
+.env
+cron.log
+*.parquet
+mlruns
+mlflow.db
+notebooks
+outputs
+tools
+serving_models/candidates

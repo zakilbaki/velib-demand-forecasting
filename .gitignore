@@ -7,3 +7,5 @@ cron.log
 *.parquet
 mlruns/
 mlflow.db
+notebooks/mlruns/
+serving_models/candidates/
