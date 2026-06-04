@@ -180,8 +180,3 @@ This is a strong **local MLOps project** with:
 - explicit model promotion
 - Dockerized FastAPI serving
 
-Not included yet:
-- remote model registry
-- cloud deployment
-- CI/CD
-- production monitoring
