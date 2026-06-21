@@ -1,156 +1,72 @@
 # Velib Demand Forecasting
 
-End-to-end ML / MLOps project to predict **next-hour bike availability** for Paris Velib stations.
+[![CI](https://github.com/zakilbaki/velib-demand-forecasting/actions/workflows/ci.yml/badge.svg)](https://github.com/zakilbaki/velib-demand-forecasting/actions/workflows/ci.yml)
 
-## Stack
+End-to-end ML system that predicts the number of bikes available at a Paris Velib
+station one hour ahead. The repository covers the full local lifecycle: live ingestion,
+time-aware feature engineering, experiment tracking, model promotion, and API serving.
 
-Python, PostgreSQL, pandas, scikit-learn, MLflow, FastAPI, Docker Compose.
+## Why this project
 
-## What the project does
+Bike availability is a short-horizon forecasting problem with direct operational value:
+better predictions can support station rebalancing and give riders a more reliable view
+of future availability. The project is designed as an engineering case study, not only a
+modeling notebook.
 
-1. Ingests live Velib snapshots from the **CityBikes API**
-2. Stores station history in **PostgreSQL**
-3. Rebuilds a supervised hourly forecasting dataset
-4. Trains and evaluates models with **MLflow**
-5. Promotes a validated model for serving
-6. Serves predictions through **FastAPI**
+## System architecture
 
-## Architecture
-
-```text
-CityBikes API
-  -> ingestion pipeline
-  -> PostgreSQL
-  -> dataset builder
-  -> training / evaluation
-  -> model candidates
-  -> promoted current model
-  -> FastAPI
+```mermaid
+flowchart LR
+    A[CityBikes API] --> B[Validated ingestion]
+    B --> C[(PostgreSQL)]
+    C --> D[Hourly feature builder]
+    D --> E[Time-series training]
+    E --> F[MLflow experiments]
+    F --> G[Candidate model]
+    G --> H[Explicit promotion]
+    H --> I[FastAPI service]
+    C --> I
 ```
 
-## Repository Layout
+| Layer | Implementation |
+| --- | --- |
+| Ingestion | CityBikes API client, validation, idempotent PostgreSQL writes |
+| Features | Hourly station state, three lag values, deltas, calendar and location features |
+| Modeling | `GradientBoostingRegressor` with time-series cross-validation |
+| Tracking | MLflow parameters, metrics, runs, and model artifacts |
+| Serving | Versioned model bundle, explicit promotion, FastAPI, Docker Compose |
+
+## Results
+
+The final evaluation uses a held-out chronological test period.
+
+| Metric | Cross-validation | Test |
+| --- | ---: | ---: |
+| RMSE | 3.0244 | 2.8223 |
+| MAE | 2.0670 | 1.9663 |
+| R2 | 0.9325 | 0.9395 |
+
+The served feature set contains current capacity, hour/weekend context, station
+coordinates, three hourly lags, and one- and three-hour deltas. Experiment metadata is
+stored alongside the promoted model under `serving_models/current/`.
+
+## Repository structure
 
 ```text
 src/
-  ingestion/   # API client, mapping, validation, persistence
-  features/    # training dataset builder
-  training/    # CV training + final evaluation
-  serving/     # API, feature reconstruction, model promotion
-  db.py
-  modeling_config.py
-
-init_sql/
-  init.sql
-
-serving_models/
-  current/     # model currently served
-  candidates/  # evaluated candidates
+  ingestion/        API client, mapping, validation, persistence
+  features/         supervised dataset and lag features
+  training/         cross-validation and final evaluation
+  serving/          model loading, promotion, feature reconstruction, API
+init_sql/            PostgreSQL schema
+notebooks/           exploratory analysis
+serving_models/      promoted bundle and local candidates
+tests/               ingestion and serving unit tests
 ```
 
-## Data Layer
+## Run locally
 
-- `stations`: static station metadata
-- `availability_history`: station availability snapshots over time
-
-The ingestion pipeline is idempotent:
-- station metadata is upserted
-- availability uses `(station_id, timestamp)` to avoid duplicate snapshots
-
-Main ingestion command:
-
-```bash
-python -m src.main
-```
-
-## Dataset and Features
-
-The ML dataset is built from PostgreSQL, not directly from the raw API payloads.
-
-Dataset logic:
-- aggregate station history to the **hourly** level
-- keep the **last observation of each hour**
-- create `free_bikes_next_hour`
-- keep only true `T -> T+1h` transitions
-
-Official modeling window:
-- `2026-01-01` to `2026-03-16`
-
-Best feature set:
-- `free_bikes_current`
-- `empty_slots_current`
-- `hour_of_day`
-- `is_weekend`
-- `latitude`
-- `longitude`
-- `free_bikes_t_minus_1`
-- `free_bikes_t_minus_2`
-- `free_bikes_t_minus_3`
-- `delta_1h`
-- `delta_3h`
-
-## Modeling
-
-Selected model:
-- `GradientBoostingRegressor`
-
-Performance:
-- CV RMSE: `3.0244`
-- CV MAE: `2.0670`
-- CV R²: `0.9325`
-- Test RMSE: `2.8223`
-- Test MAE: `1.9663`
-- Test R²: `0.9395`
-
-## MLflow
-
-MLflow is used for:
-- experiment tracking
-- parameters and metrics
-- model artifacts
-
-Local setup:
-- `mlflow.db` stores run metadata
-- `mlruns/` stores run artifacts
-
-## Serving Workflow
-
-The project separates:
-- **evaluation** of model candidates
-- **promotion** of the model actually served
-
-### Evaluate a candidate
-
-```bash
-python -m src.training.evaluate_regression
-```
-
-This exports a candidate bundle to:
-
-```text
-serving_models/candidates/<run_id>/
-```
-
-### Promote a candidate
-
-```bash
-python -m src.serving.promote_model --run-id <run_id>
-```
-
-This copies the chosen bundle to:
-
-```text
-serving_models/current/
-```
-
-### API routes
-
-- `GET /health`
-- `POST /predict`
-- `POST /predict/station-state`
-
-The `station-state` route rebuilds lag and geography features from PostgreSQL before prediction.
-
-## Quick Start
+Requirements: Python 3.12 and Docker Compose.
 
 ```bash
 python -m venv .venv
@@ -158,6 +74,11 @@ source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env
 docker compose up -d postgres
+```
+
+Ingest one live snapshot, then train and evaluate once enough history is available:
+
+```bash
 python -m src.main
 python -m src.training.train_regression
 python -m src.training.evaluate_regression
@@ -165,18 +86,49 @@ python -m src.serving.promote_model --run-id <run_id>
 docker compose up -d --build api
 ```
 
-Test the API:
+The API is exposed at `http://127.0.0.1:8000`; interactive documentation is available
+at `http://127.0.0.1:8000/docs`.
+
+## API example
+
+The low-level endpoint accepts an already-built feature vector:
 
 ```bash
-curl http://127.0.0.1:8000/health
+curl -X POST http://127.0.0.1:8000/predict \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "free_bikes_current": 12,
+    "empty_slots_current": 8,
+    "hour_of_day": 18,
+    "is_weekend": false,
+    "latitude": 48.8566,
+    "longitude": 2.3522,
+    "free_bikes_t_minus_1": 11,
+    "free_bikes_t_minus_2": 10,
+    "free_bikes_t_minus_3": 9,
+    "delta_1h": 1,
+    "delta_3h": 3
+  }'
 ```
 
-## Scope
+For an operational request, `POST /predict/station-state` rebuilds lag and location
+features from PostgreSQL before inference. `GET /health` reports whether a promoted
+model is loaded.
 
-This is a strong **local MLOps project** with:
-- ingestion
-- PostgreSQL storage
-- MLflow tracking
-- explicit model promotion
-- Dockerized FastAPI serving
+## Quality checks
 
+```bash
+pip install -r requirements-dev.txt
+ruff check --select E9,F63,F7,F82 src tests
+pytest -q
+```
+
+GitHub Actions runs the same checks on every pull request.
+
+## Current limitations
+
+- This is a local MLOps system; scheduling and cloud deployment are out of scope.
+- Predictions depend on three consecutive hours of station history.
+- Weather, holidays, and nearby-station demand are not yet included.
+- The repository contains a small promoted model bundle for demonstration, but not the
+  raw historical database.
