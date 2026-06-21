@@ -125,10 +125,3 @@ pytest -q
 
 GitHub Actions runs the same checks on every pull request.
 
-## Current limitations
-
-- This is a local MLOps system; scheduling and cloud deployment are out of scope.
-- Predictions depend on three consecutive hours of station history.
-- Weather, holidays, and nearby-station demand are not yet included.
-- The repository contains a small promoted model bundle for demonstration, but not the
-  raw historical database.
