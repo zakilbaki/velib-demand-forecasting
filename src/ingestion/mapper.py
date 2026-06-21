@@ -13,7 +13,7 @@ def map_station_record(station_data: dict) -> tuple[Station, AvailabilityObserva
     empty_slots = station_data["empty_slots"]
 
     if timestamp_str.endswith("Z"):
-        timestamp_str = timestamp_str[:-1]
+        timestamp_str = f"{timestamp_str[:-1]}+00:00"
 
     timestamp = datetime.fromisoformat(timestamp_str)
 
